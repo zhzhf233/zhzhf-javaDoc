@@ -1,4 +1,4 @@
-![MySQL架构设计](1-MySQL架构设计/MySQL架构设计.png)
+![MySQL架构设计](1-MySQL架构设计.assets/MySQL架构设计.png)
 
 1. MySQL驱动：
    1. MySQL驱动底层会跟数据库建立网络连接，接着才能发送请求给数据库服务器。
