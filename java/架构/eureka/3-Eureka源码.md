@@ -1,3 +1,7 @@
+
+
+
+
 ## **一、核心组件**
 
 **1.SpringCloud Eureka 和Netflix Eureka的关系**
@@ -40,7 +44,7 @@ spring cloud Edgware.SR3对应的是netflix eureka的1.7.2的版本
 
 ## **二、eureka server启动**
 
-**1.eureka server项目预览**
+### 1.eureka server项目预览
 
 **1）项目依赖：build.gradle**
 
@@ -96,3 +100,140 @@ spring cloud Edgware.SR3对应的是netflix eureka的1.7.2的版本
 ![welcome-file-list](3-Eureka源码.assets/welcome-file-list.png)
 
 1. welcome-file-list，是配置了status.jsp是欢迎页面，首页，eureka-server的控制台页面，展示注册服务的信息
+
+### 2.初始化配置管理器
+
+1. 源码阅读的入口，从web.xml的listener开始，可以看到项目的入口在EurekaBootStrap
+
+![image-20210825221131165](3-Eureka源码.assets/image-20210825221131165.png)
+
+2. EurekaBootStrap类中加载contextInitialized()方法，首先会执行本类中的initEurekaEnvironment()方法。
+
+![image-20210825222014720](3-Eureka源码.assets/image-20210825222014720.png)
+
+3. initEurekaEnvironment()方法，首先会去加载并初始化配置管理器（ConfigurationManager实例）
+
+![image-20210825221854783](3-Eureka源码.assets/image-20210825221854783.png)
+
+4. ConfigurationManager实例使用volatile修饰，实例化采用double check + volatile修饰实现了单例模式
+
+![image-20210825222209526](3-Eureka源码.assets/image-20210825222209526.png)
+
+![image-20210825222145686](3-Eureka源码.assets/image-20210825222145686.png)
+
+5. 回到第3步中的initEurekaEnvironment()方法，初始化配置管理器中的数据中心和运行环境
+
+![image-20210825224323776](3-Eureka源码.assets/image-20210825224323776.png)
+
+### 3.加载eureka-server.properties配置文件中的配置
+
+1. 继续com.netflix.eureka.EurekaBootStrap#contextInitialized()方法执行同类中的initEurekaServerContext()方法
+
+![image-20210825230444545](3-Eureka源码.assets/image-20210825230444545.png)
+
+2. initEurekaServerContext()方法，第一步操作为加载系统配置文件到配置管理器中
+
+![image-20210825230837125](3-Eureka源码.assets/image-20210825230837125.png)
+
+3. EurekaServerConfig为一个配置项接口，定义了eureka-server.properties中的所有配置获取方法。
+
+![image-20210825231111839](3-Eureka源码.assets/image-20210825231111839.png)
+
+4. DefaultEurekaServerConfig是EurekaServerConfig接口的一个实现类，初始化该类的时候，会执行init()方法
+
+![image-20210825231236984](3-Eureka源码.assets/image-20210825231236984.png)
+
+5. init()方法中，会完成eureka-server.properties配置文件中配置项的加载，都放到ConfigurationManager中去，其中有一个EUREKA_PROPS_FILE常量对象，对应着要加载的eureka的配置文件的名字，默认为：eureka-server.  
+
+![image-20210825231717982](3-Eureka源码.assets/image-20210825231717982.png)
+
+![image-20210825231653751](3-Eureka源码.assets/image-20210825231653751.png)
+
+6. init()方法中，下面执行的loadCascadedPropertiesFromResources()方法，会自动拼接上.properties，如果设置了test运行环境，还会加上对应的-test,从而获取到对应的配置文件读取，并通过配置管理器ConfigurationManager的实例instance执行addConfiguration()方法，添加到配置文件管理器DynamicPropertyFactory的实例instance中去。
+
+![image-20210825232350068](3-Eureka源码.assets/image-20210825232350068.png)
+
+7. 上面步骤中就已经把eureka-service.properties配置中的配置信息都添加到配置文件管理器DynamicPropertyFactory的实例instance中去了，所以接下来获取配置信息可以直接通过EurekaServerConfig接口的实现类：DefaultEurekaServerConfig中的方法获取。configInstance实例就是配置文件管理器DynamicPropertyFactory的实例instance。
+
+   需要注意的是：配置项的名字，都是在获取配置项的方法中硬编码的。如果没有配置会自动添加一些默认值。
+
+![image-20210825234157252](3-Eureka源码.assets/image-20210825234157252.png)
+
+### 4.初始化Eureka-Server作为一个Eureka-Client的配置信息
+
+![image-20210830222611486](3-Eureka源码.assets/image-20210830222611486.png)
+
+1. ###### 在initEurekaServerContext()方法中，初始化一个ApplicationInfoManager空对象。
+
+2. ###### EurekaInstanceConfig
+
+   与上面初始化EurekaServerConfig加载eureka-server.properties类似，其实就是将eureka-client.properties文件中的配置加载到ConfigurationManager中去，然后基于EurekaInstanceConfig对外暴露的接口来获取这个eureka-client.properties文件中的一些配置项的读取，提供了一些配置项的默认值。
+
+![image-20210830223028242](3-Eureka源码.assets/image-20210830223028242.png)
+
+3. ###### new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get()
+
+   这段代码返回的结果是一个InstanceInfo对象，就是当前这个Eureka-Server服务作为一个Eureka-Client服务实例所需要的一些信息。
+
+   使用构造器模式，用InstanceInfo.Builder来构造一个代表服务实例的InstanceInfo复杂对象。
+
+   核心的思路是，从之前的那个EurekaInstanceConfig中，读取各种各样的服务实例相关的配置信息，再构造了几个其他的对象，最终完成了InstanceInfo的构建。
+
+![image-20210830223744841](3-Eureka源码.assets/image-20210830223744841.png)
+
+4. ###### applicationInfoManager = new ApplicationInfoManager(instanceConfig, new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get());
+
+   这段代码是基于第2步构建的EurekaInstanceConfig和第3步构建的InstanceInfo，构造了一个ApplicationInfoManager，后面会基于这个ApplicationInfoManager对服务实例进行一些管理。
+
+   ![image-20210830224050625](3-Eureka源码.assets/image-20210830224050625.png)
+
+5. ###### EurekaClientConfig eurekaClientConfig = new DefaultEurekaClientConfig();
+
+   EurekaClientConfig，这个东西也是个接口，也是对外暴露了一大堆的配置项，包含的是EurekaClient相关的一些配置项。也是去读eureka-client.properties里的一些配置，只不过他关注的是跟之前的那个EurekaInstanceConfig是不一样的，EurekaClientConfig主要关注服务实例的一些配置项，关联的EurekaClient的配置项。
+
+6. ###### eurekaClient = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
+
+   基于第4步构建的ApplicationInfoManager（包含了第2步构建的EurekaInstanceConfig，服务实例的信息、配置；和第3步构建的InstanceInfo，作为服务实例管理的一个组件）和eurekaClientConfig（eureka-client相关的配置），一起构建了一个EurekaClient，构建的时候，用的是EurekaClient的子类DiscoveryClient。
+
+   最终使用的这个构造方法：
+
+   ![image-20210831005728702](3-Eureka源码.assets/image-20210831005728702.png)
+
+   1. 读取ApplicationInfoManager,包括其中的InstanceInfo；读取EurekaClientConfig，包括TransportConfig
+
+   ![image-20210831010023792](3-Eureka源码.assets/image-20210831010023792.png)
+
+   2. 处理了是否要注册以及抓取注册表，如果不要的话，释放一些资源
+
+   ![image-20210831010247425](3-Eureka源码.assets/image-20210831010247425.png)
+
+   3. 创建支持调度的线程池，支持心跳的线程池，支持缓存刷新的线程池
+
+   ![image-20210831010417360](3-Eureka源码.assets/image-20210831010417360.png)
+
+   4. 创建EurekaTransport对象，支持底层的eureka-client跟eureka-server进行网络通信的组件，对网络通信组件进行了一些初始化的操作。
+
+   ![image-20210831010626772](3-Eureka源码.assets/image-20210831010626772.png)
+
+   5. 如果要抓取注册表的话，在这里就会去抓取注册表，如果抓取失败，会从备份信息中抓取。但是如果说你配置了不抓取，那么这里就不抓取了
+
+   ![image-20210831011236186](3-Eureka源码.assets/image-20210831011236186.png)
+
+   6. 初始化调度任务
+
+      ![image-20210831011552439](3-Eureka源码.assets/image-20210831011552439.png)
+
+      1. 如果要抓取注册表的话，就会注册一个定时任务，按照你设定的那个抓取的间隔（默认是30s），每个一段时间，去执行一个CacheRefreshThread,放到调度线程池里。
+
+         ![image-20210831011709011](3-Eureka源码.assets/image-20210831011709011.png)
+
+      2. 如果要向eureka server进行注册的话。
+
+         ![image-20210831012929271](3-Eureka源码.assets/image-20210831012929271.png)
+
+         1. 会搞一个定时任务，每隔一定时间发送心跳，执行一个HeartbeatThread，放到调度线程池里。
+         2. 创建服务实例副本传播器
+         3. 创建服务实例的状态变更的监听器
+         4. 如果你配置了监听，那么就会注册监听器
+         5. 将第2步创建的服务实例副本传播器作为一个定时任务进行调度。
+
