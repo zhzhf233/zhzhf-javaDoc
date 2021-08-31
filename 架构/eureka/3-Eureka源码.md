@@ -237,3 +237,44 @@ spring cloud Edgware.SR3对应的是netflix eureka的1.7.2的版本
          4. 如果你配置了监听，那么就会注册监听器
          5. 将第2步创建的服务实例副本传播器作为一个定时任务进行调度。
 
+### 5.构造一些实例的配置项
+
+1. 构造PeerAwareInstanceRegistry实例。
+
+   peers:集群，peer代表集群中的一个实例。InstanceRegistry代表实例注册表，所以PeerAwareInstanceRegistry实例代表了所有注册到这个eureka-server上的服务实例注册表。
+
+   可以感知eureka server集群的服务实例注册表，eureka client（作为服务实例）过来注册的注册表，而且这个注册表是可以感知到eureka server集群的。假如有一个eureka server集群的话，这里包含了其他的eureka server中的服务实例注册表的信息的。
+
+   ![image-20210901062832843](3-Eureka源码.assets/image-20210901062832843.png)
+
+2. 构造PeerEurekaNodes实例。
+
+   加载eureka-server集群的节点信息。使用如下构造方法，将配置信息加载到该实例中
+
+   ![image-20210901063109733](3-Eureka源码.assets/image-20210901063109733.png)
+
+3. 构造EurekaServerContext实例。
+
+   1. 将上面构造的实例信息，放入EurekaServerContext实例中，代表了服务的上下文，包含了服务所需要的所有配置项。
+
+      并且将构造的EurekaServerContext实例放入一个holder中去，如果要使用该实例，直接去holder中取，这是一个比较常见的用法，将初始化好的一些实例，放入一个holder中，服务运行期间，哪里要使用到这个实例，直接去holder中取。
+
+   ![image-20210901063630735](3-Eureka源码.assets/image-20210901063630735.png)
+
+   2. 执行EurekaServerContext.initialize()
+
+      1. 其中最主要的是执行了peerEurekaNodes.start();这个方法，将eureka server集群给启动起来，更新一下eureka server集群的信息，让当前的eureka server感知到所有的其他的eureka server。然后搞一个定时调度任务，就一个后台线程，每隔一定的时间，更新eureka server集群的信息。![image-20210901064051548](3-Eureka源码.assets/image-20210901064051548.png)
+
+      2.  执行registry.init(peerEurekaNodes);
+
+         基于eureka server集群的信息，来初始化注册表，将eureka server集群中所有的eureka server的注册表的信息，都抓取过来，放到自己本地的注册表里去。
+
+4. 执行registry.syncUp();方法
+
+   从相邻的一个eureka server节点拷贝注册表的信息，如果拷贝失败，就找下一个。
+
+   ![image-20210901064733540](3-Eureka源码.assets/image-20210901064733540.png)
+
+5. 执行EurekaMonitors.registerAllStats();方法
+
+   eureka自身的监控机制。这个后面再看
