@@ -23,7 +23,7 @@
 
 ## 二、Eureka server多级缓存读取注册表
 
-1. Eureka Client抓取注册表调用的接口对应eureka-core包resources目录下的ApplicationsResource类下的getContainers()方法。在该接口方法中，会去缓存中加载注册表，返回给eureka client。
+1. Eureka Client抓取注册表调用的接口对应eureka-core包resources目录下的ApplicationsResource类下的getContainers()方法。在该接口方法中，会去缓存中加载注册表，返回给eureka client。cacheKey中参数为ALL_APPS
 
 ![image-20210910080708178](7-Eureka启动全量抓取注册表.assets/image-20210910080708178.png)
 
