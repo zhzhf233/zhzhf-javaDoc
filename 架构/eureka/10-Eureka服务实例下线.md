@@ -1,14 +1,16 @@
 # Eureka服务实例下线
 
+![Eureka服务实例下线](10-Eureka服务实例下线.assets/Eureka服务实例下线.png)
+
 ## 一、Eureka Client下线通知
 
 1. Eureka Client服务下线会执行DiscoveryClient.shutdown()方法
    1. 销毁定时任务线程池
    2. 调用unregister();调用Eureka Server接口摘除实例
-   3. 释放client资源
+   3. 释放http client资源
    4. 销毁健康检查器
 
-![image-20210916174313585](C:\Users\zhzhf\AppData\Roaming\Typora\typora-user-images\image-20210916174313585.png)
+![image-20210916230655856](10-Eureka服务实例下线.assets/image-20210916230655856.png)
 
 2. unregister()方法中，调用Eureka Server的接口，摘除注册表中的实例。执行DELETE请求，调用http://localhost:8080/eureka/v2/apps/ServiceA/i-000000-1
 
