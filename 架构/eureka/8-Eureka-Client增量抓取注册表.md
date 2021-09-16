@@ -40,6 +40,17 @@
 
 ## 二、Eureka Server
 
+```
+Eureka Server设计的两个闪光点：
+1.增量数据的设计思路。
+	1).基于LinkedQueue，将每次变更的数据放入队列中。
+	2).后台创建一个定时任务，每隔一定时间，将队列中存放超过一定时间的数据移除掉，保证队列中为最近几分钟内变更的增量数据。
+2.数据同步时的一致性hash比对机制。
+	1).在分布式系统中，进行数据同步时，采用hash值的思想，从一个地方计算一个hash值，到另一个地方，再计算一个hash值，保证两个hash值时一样的，确保数据传输过程中没有出现差异。
+```
+
+
+
 1. Eureka Client通过调用http://localhost:8080/eureka/v2/apps/delta接口获取增量的注册表，该接口对应eureka-core的resources目录下的ApplicationsResource类中的getContainerDifferential()方法。
 
 ![image-20210915220143981](8-Eureka-Client增量抓取注册表.assets/image-20210915220143981.png)
@@ -75,3 +86,4 @@
 ![image-20210916071538925](8-Eureka-Client增量抓取注册表.assets/image-20210916071538925.png)
 
 7. 上述步骤拿到了最近180s内有变更的服务实例，其实也就是增量的注册表。返回到Eureka Client服务中去做相应的处理。
+
