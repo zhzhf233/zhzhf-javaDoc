@@ -40,6 +40,6 @@
 
    ![image-20210916184103619](10-Eureka服务实例下线.assets/image-20210916184103619.png)
 
-   5. 将readWriteCacheMap缓存中的注册表清理掉。
+   5. 将readWriteCacheMap缓存中的注册表清理掉
 
    ![image-20210916184711101](10-Eureka服务实例下线.assets/image-20210916184711101.png)
