@@ -1,5 +1,7 @@
 # Eureka集群机制：注册表同步及高可用
 
+![13-Eureka集群机制：注册表同步及高可用](13-Eureka集群机制：注册表同步及高可用.assets/13-Eureka集群机制：注册表同步及高可用.png)
+
 #### 1.Eureka Server在初始化的时候，从配置文件中读取其他Eureka Server节点
 
 1. 在eureka-core里的EurekaBootStrap里面，初始化Eureka Server时，会创建并调用serverContext.initialize()初始化PeerEurekaNodes。
